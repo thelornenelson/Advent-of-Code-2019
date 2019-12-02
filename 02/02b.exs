@@ -3,19 +3,18 @@ input = File.read("input.txt")
   |> String.replace_suffix("\n", "")
   |> String.split(",", trim: true)
   |> Enum.map(fn x -> String.to_integer(x) end)
-  |> List.to_tuple
+  |> Enum.with_index
+  |> Enum.reduce(%{}, fn({v, k}, acc) -> Map.put(acc, k, v) end)
 
 defmodule Intcode do
   def op(register, {1, a, b, target}) do
-    value_a = elem(register, a)
-    value_b = elem(register, b)
-    put_elem(register, target, value_a + value_b)
+    %{^a => value_a, ^b => value_b} = register
+    %{register | target => value_a + value_b}
   end
 
   def op(register, {2, a, b, target}) do
-    value_a = elem(register, a)
-    value_b = elem(register, b)
-    put_elem(register, target, value_a * value_b)
+    %{^a => value_a, ^b => value_b} = register
+    %{register | target => value_a * value_b}
   end
 
   def run(register, offset \\ 0) do
@@ -29,33 +28,22 @@ defmodule Intcode do
   end
 
   def get_op(register, offset) do
-    op = get_elem(register, 0 + offset)
-    a = get_elem(register, 1 + offset)
-    b = get_elem(register, 2 + offset)
-    target = get_elem(register, 3 + offset)
-    {op, a, b, target}
-  end
-
-  def get_elem(register, offset) when offset >= tuple_size(register) do
-    nil
-  end
-
-  def get_elem(register, offset) do
-    elem(register, offset)
+    Enum.map((0..3), fn x -> register[x + offset] end)
+      |> List.to_tuple
   end
 end
 
 defmodule Set_error do
   def set(register, a, b) do
-    put_elem(register, 1, a)
-      |> put_elem(2, b)
+    Map.put(register, 1, a)
+      |> Map.put(2, b)
   end
 end
 
 defmodule Find_inputs do
   def target(register, target, noun \\ 0, verb \\ 0) do
     updated_register = run_inputs(register, noun, verb)
-    if elem(updated_register, 0) == target do
+    if updated_register[0] == target do
       # Solution found
       {:ok, noun, verb}
     else
