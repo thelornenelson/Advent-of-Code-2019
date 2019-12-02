@@ -19,11 +19,12 @@ defmodule Intcode do
 
   def run(register, offset \\ 0) do
     {op, a, b, target} = get_op(register, offset)
-    if op == 99 do
-      register
-    else
-      op(register, {op, a, b, target})
-        |> run(offset + 4)
+    case op do
+      99 ->
+        register
+      _ ->
+        op(register, {op, a, b, target})
+          |> run(offset + 4)
     end
   end
 
