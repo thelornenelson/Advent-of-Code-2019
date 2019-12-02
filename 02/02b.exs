@@ -1,21 +1,21 @@
 input = File.read("input.txt")
-  |> (fn { _, file } -> file end).()
+  |> (fn {:ok, file} -> file end).()
   |> String.replace_suffix("\n", "")
   |> String.split(",", trim: true)
   |> Enum.map(fn x -> String.to_integer(x) end)
+  |> List.to_tuple
 
-# Register should probably use a tuple for quicker lookup
 defmodule Intcode do
   def op(register, {1, a, b, target}) do
-    {value_a, _} = List.pop_at(register, a)
-    {value_b, _} = List.pop_at(register, b)
-    List.replace_at(register, target, value_a + value_b)
+    value_a = elem(register, a)
+    value_b = elem(register, b)
+    put_elem(register, target, value_a + value_b)
   end
 
   def op(register, {2, a, b, target}) do
-    {value_a, _} = List.pop_at(register, a)
-    {value_b, _} = List.pop_at(register, b)
-    List.replace_at(register, target, value_a * value_b)
+    value_a = elem(register, a)
+    value_b = elem(register, b)
+    put_elem(register, target, value_a * value_b)
   end
 
   def run(register, offset \\ 0) do
@@ -29,31 +29,39 @@ defmodule Intcode do
   end
 
   def get_op(register, offset) do
-    {op, _} = List.pop_at(register, 0 + offset)
-    {a, _} = List.pop_at(register, 1 + offset)
-    {b, _} = List.pop_at(register, 2 + offset)
-    {target, _} = List.pop_at(register, 3 + offset)
+    op = get_elem(register, 0 + offset)
+    a = get_elem(register, 1 + offset)
+    b = get_elem(register, 2 + offset)
+    target = get_elem(register, 3 + offset)
     {op, a, b, target}
+  end
+
+  def get_elem(register, offset) when offset >= tuple_size(register) do
+    nil
+  end
+
+  def get_elem(register, offset) do
+    elem(register, offset)
   end
 end
 
 defmodule Set_error do
   def set(register, a, b) do
-    List.replace_at(register, 1, a)
-      |> List.replace_at(2, b)
+    put_elem(register, 1, a)
+      |> put_elem(2, b)
   end
 end
 
 defmodule Find_inputs do
   def target(register, target, noun \\ 0, verb \\ 0) do
     updated_register = run_inputs(register, noun, verb)
-    if hd(updated_register) == target do
-      # Input found
+    if elem(updated_register, 0) == target do
+      # Solution found
       {:ok, noun, verb}
     else
       case {noun, verb} do
         {99, 99} ->
-          # No input found
+          # No solution found
           {:not_found}
         {_, 99} ->
           # Test next noun
